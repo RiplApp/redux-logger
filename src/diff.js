@@ -1,49 +1,41 @@
-import differ from 'deep-diff';
+import diff from 'microdiff';
 
 // https://github.com/flitbit/diff#differences
 const dictionary = {
-  E: {
+  CHANGE: {
     color: '#2196F3',
     text: 'CHANGED:',
   },
-  N: {
+  CREATE: {
     color: '#4CAF50',
     text: 'ADDED:',
   },
-  D: {
+  REMOVE: {
     color: '#F44336',
     text: 'DELETED:',
   },
-  A: {
-    color: '#2196F3',
-    text: 'ARRAY:',
-  },
 };
 
-export function style(kind) {
-  return `color: ${dictionary[kind].color}; font-weight: bold`;
+export function style(type) {
+  return `color: ${dictionary[type].color}; font-weight: bold`;
 }
 
-export function render(diff) {
-  const { kind, path, lhs, rhs, index, item } = diff;
+export function render(difference) {
+  const { type, path } = difference;
 
-  switch (kind) {
-    case 'E':
-      return [path.join('.'), lhs, '→', rhs];
-    case 'N':
-      return [path.join('.'), rhs];
-    case 'D':
-      return [path.join('.')];
-    case 'A':
-      return [`${path.join('.')}[${index}]`, item];
+  switch (type) {
+    case 'CHANGE':
+      return [path.join('.'), difference.oldValue, '→', difference.value];
+    case 'CREATE':
+      return [path.join('.'), difference.value];
+    case 'REMOVE':
+      return [path.join('.'), difference.oldValue];
     default:
       return [];
   }
 }
 
 export default function diffLogger(prevState, newState, logger, isCollapsed) {
-  const diff = differ(prevState, newState);
-
   try {
     if (isCollapsed) {
       logger.groupCollapsed('diff');
@@ -54,12 +46,13 @@ export default function diffLogger(prevState, newState, logger, isCollapsed) {
     logger.log('diff');
   }
 
-  if (diff) {
-    diff.forEach((elem) => {
-      const { kind } = elem;
-      const output = render(elem);
+  const differences = diff(prevState, newState);
 
-      logger.log(`%c ${dictionary[kind].text}`, style(kind), ...output);
+  if (differences) {
+    differences.forEach((difference) => {
+      const output = render(difference);
+      const { type } = difference;
+      logger.log(`%c ${dictionary[type].text}`, style(type), ...output);
     });
   } else {
     logger.log('—— no diff ——');
